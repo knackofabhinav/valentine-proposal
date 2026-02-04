@@ -68,10 +68,23 @@
             position: relative;
             cursor: pointer;
             transition: transform 0.3s ease;
+            animation: envelopeFloat 3s ease-in-out infinite;
         }
 
-        .envelope:hover {
+        @keyframes envelopeFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .envelope:hover, .envelope:active {
             transform: scale(1.05);
+            animation: none;
+        }
+
+        @media (hover: none) {
+            .envelope:active {
+                transform: scale(0.98);
+            }
         }
 
         .envelope-body {
@@ -963,6 +976,7 @@
             .modal-content {
                 padding: 32px 24px;
                 border-radius: 20px;
+                max-height: 85vh;
             }
 
             .countdown-value {
@@ -979,6 +993,31 @@
 
             .vibe-btn {
                 padding: 14px 10px;
+            }
+
+            .modal-overlay {
+                padding: 16px;
+                align-items: flex-end;
+            }
+
+            .modal-content {
+                border-radius: 20px 20px 0 0;
+                margin-bottom: 0;
+            }
+        }
+
+        /* Better touch targets */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 48px;
+            }
+
+            .vibe-btn {
+                min-height: 72px;
+            }
+
+            input, select, textarea {
+                font-size: 16px; /* Prevents iOS zoom */
             }
         }
 
@@ -1046,7 +1085,7 @@
             <div class="envelope-heart">
                 <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             </div>
-            <div class="envelope-text">tap to open</div>
+            <div class="envelope-text" id="envelopeText">tap to open</div>
         </div>
     </div>
 
@@ -1497,6 +1536,24 @@
         // Parallax
         function setupParallax() {
             const card = document.getElementById('card');
+            const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+            // Skip heavy parallax on mobile for better performance
+            if (isMobile) {
+                // Use device orientation for subtle effect on mobile
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', (e) => {
+                        if (e.gamma === null) return;
+                        const rotateY = Math.max(-5, Math.min(5, e.gamma * 0.15));
+                        const rotateX = Math.max(-5, Math.min(5, (e.beta - 45) * 0.1));
+
+                        if (card.classList.contains('visible')) {
+                            card.style.transform = `translateY(0) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+                        }
+                    }, { passive: true });
+                }
+                return;
+            }
 
             document.addEventListener('mousemove', (e) => {
                 mouseX = e.clientX;
@@ -1758,8 +1815,21 @@
 
         // Yes handler
         function handleYes() {
+            // Haptic feedback on mobile
+            if (navigator.vibrate) {
+                navigator.vibrate([50, 30, 100]);
+            }
+
             const params = new URLSearchParams(window.location.search);
-            const rel = params.get('rel');
+            const encoded = params.get('v');
+            let rel;
+
+            if (encoded) {
+                const data = decodeData(encoded);
+                if (data) rel = data.r;
+            } else {
+                rel = params.get('rel');
+            }
 
             currentContent = content[rel] || defaultContent;
             document.getElementById('loveNote').textContent = currentContent.success;
